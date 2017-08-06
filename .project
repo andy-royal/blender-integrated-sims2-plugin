@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>Blender Sims2 Plugin</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>org.python.pydev.PyDevBuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>org.python.pydev.pythonNature</nature>
+	</natures>
+	<variableList>
+		<variable>
+			<name>BLENDER_PYTHON</name>
+			<value>file:/C:/Program%20Files/Blender%20Foundation/Blender/2.78/scripts/modules/bpy</value>
+		</variable>
+	</variableList>
+</projectDescription>
