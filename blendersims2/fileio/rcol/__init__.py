@@ -15,8 +15,8 @@ import blendersims2.fileio.rcol.light
 import blendersims2.fileio.rcol.shape
 import blendersims2.fileio.rcol.viewer
 
-cTransformNode.register()
-cBoneDataExtension.register()
+cTransformNode.register_RCOL()
+cBoneDataExtension.register_RCOL()
 
 class RCOL:
     """Sims2 Scenegraph Resource Collection"""
@@ -59,9 +59,7 @@ class RCOL:
             print("Done!")
             
     @classmethod
-    def get_name(cls, dg, identifier, verbose=False):
-        if verbose:
-            print ("Getting name for %s" % str(identifier))
+    def get_name(cls, dg, verbose=False):
         rcol = cls()
         rcol.header = RCOLHeader(dg, verbose)
         if rcol.header.item_count:

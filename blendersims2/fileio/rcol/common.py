@@ -78,8 +78,8 @@ class RCOLDataBlock(Node):
         pass
 
     @classmethod
-    def register(cls):
-        PackedFileType.register(cls.typeEnum, cls)
+    def register_RCOL(cls):
+        PackedFileType.register_RCOL(cls.typeEnum, cls)
 
     @staticmethod
     def get_nodetype(data):

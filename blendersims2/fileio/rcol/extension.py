@@ -143,5 +143,5 @@ class cTagExtension(RCOLDataBlock):
     def get_name(self):
         return self.tag
     
-cDLEData.register()
-cTagExtension.register()
+cDLEData.register_RCOL()
+cTagExtension.register_RCOL()

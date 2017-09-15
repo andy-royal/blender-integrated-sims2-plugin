@@ -34,19 +34,20 @@ class LOD(Sims2Reader):
                 if verbose:
                     print("Found target descriptor: %s => %s" % (self.name, str(DecodeDescriptor(targ_descriptor))))
             else:
-                print("Failed to find target descriptor for %s in local name map, checking global" % self.name)
+                if verbose:
+                    print("Failed to find target descriptor for %s in local name map, checking global" % self.name)
                 targ_descriptor = packman.findname(PackedFile.GMND, self.name)
                 if targ_descriptor:
                     if verbose:
                         print("Found target descriptor: %s => %s" % (self.name, str(DecodeDescriptor(targ_descriptor))))
                 else:
                     raise ValueError("Failed to find target descriptor for %s in name maps" % self.name)
-            self.target = packman.GetRCOL(targ_descriptor)
+            self.target = packman.getResource(targ_descriptor)
             if not self.target:
                 resource = sims2crc32(self.name.lower().encode('ascii'))
                 resource_bytes = struct.pack('I', resource)
                 descriptor = b''.join((targ_descriptor, resource_bytes))
-                self.target = packman.GetRCOL(descriptor)
+                self.target = packman.getResource(descriptor)
             self.target.ResolveAllLinks(packman, verbose)
 
     def __str__(self):
@@ -284,5 +285,5 @@ class cShapeRefNode(RCOLDataBlock):
             else:
                 indented_print(indent+1, "No blend values")
 
-cShapeRefNode.register()
-SHPEData.register()
+cShapeRefNode.register_RCOL()
+SHPEData.register_RCOL()

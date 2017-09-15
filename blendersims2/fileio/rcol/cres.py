@@ -74,4 +74,4 @@ class CRESData(RCOLDataBlock):
                 indented_print(indent+1, "Subnode")
             indented_print(indent+1, "Purpose = %d" % self.purpose)
             
-CRESData.register()
+CRESData.register_RCOL()

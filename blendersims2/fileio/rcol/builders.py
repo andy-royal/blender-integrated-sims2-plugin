@@ -275,9 +275,9 @@ class cTangentSpaceBuilder(RCOLDataBlock):
     def get_name(self):
         return "{None}"
     
-cBoundingVolumeBuilder.register()
-cTSFaceGeometryBuilder.register()
-cProcessDeformationsBuilder.register()
-cTangentSpaceBuilder.register()
-cIndexedMeshBuilder.register()
-cCompactorBuilder.register()
+cBoundingVolumeBuilder.register_RCOL()
+cTSFaceGeometryBuilder.register_RCOL()
+cProcessDeformationsBuilder.register_RCOL()
+cTangentSpaceBuilder.register_RCOL()
+cIndexedMeshBuilder.register_RCOL()
+cCompactorBuilder.register_RCOL()

@@ -109,5 +109,5 @@ class cViewerRefNodeRecursive(RCOLDataBlock):
         else:
             indented_print(indent+1, "No use types")
 
-cViewerRefNodeRecursive.register()
-cViewerRefNode.register()
+cViewerRefNodeRecursive.register_RCOL()
+cViewerRefNode.register_RCOL()

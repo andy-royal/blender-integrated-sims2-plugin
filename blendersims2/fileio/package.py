@@ -10,10 +10,11 @@ from blendersims2.fileio.crcutils import sims2crc32, sims2crc24
 from blendersims2.fileio.datagenerator import DataGenerator
 from blendersims2.fileio.version import Version
 from blendersims2.fileio.primitives import Sims2Reader
-from blendersims2.fileio.tgir import Identifier, PackedFile, GetTypeFromDescriptor, GetInstanceFromDescriptor, \
-                 DecodeDescriptor, IndexEntry
+from blendersims2.fileio.tgir import Identifier, PackedFile, GetTypeFromDescriptor, GetGroupFromDescriptor, \
+                 GetInstanceFromDescriptor, GetResourceFromDescriptor, DecodeDescriptor, IndexEntry
 from blendersims2.fileio.rcol import RCOL
 import blendersims2.fileio.rcol
+import blendersims2.fileio.rawpacked
 
 class DBPF(Sims2Reader):
     """Sims 2 Database-Packed File"""
@@ -164,7 +165,7 @@ class DBPF(Sims2Reader):
                 dg = DataGenerator(fh, offset, size, decompressed_size)
 
                 if identifier.type.is_rcol():
-                    name = RCOL.get_name(dg, identifier).lower()
+                    name = RCOL.get_name(dg).lower()
                     if int(identifier.type) not in self.namemaps:
                         self.namemaps[identifier.type] = {}
                     self.namemaps[identifier.type][name] = descriptor
@@ -172,7 +173,7 @@ class DBPF(Sims2Reader):
                     if verbose:
                         print ("Skipping non-RCOL type %s" % str(identifier.type))
 
-    def get_RCOL(self, descriptor, verbose=False):
+    def getResource(self, descriptor, verbose=False):
         decompressed_size = None
         rcol = None
 
@@ -183,16 +184,14 @@ class DBPF(Sims2Reader):
             if descriptor in self.index:
                 (offset, size, _) = self.index[descriptor]            
             else:
-                #if verbose:
-                print("Descriptor not found in index: %s" % str(DecodeDescriptor(descriptor)))
+                if verbose:
+                    print("Descriptor not found in index: %s" % str(DecodeDescriptor(descriptor)))
                 return rcol
 
-        #if verbose:
-        if True:
+        if verbose:
             print ("Opening " + self.file)
         with open(self.file, 'rb') as fh:
-            self.extract_dircomp(fh)
-            if descriptor in self.dircomp:
+            if self.extract_dircomp(fh) and descriptor in self.dircomp:
                 decompressed_size = self.dircomp[descriptor]
                 if verbose:
                     print("RCOL is compressed (%d bytes, decompressed %d)" % (size, decompressed_size))
@@ -200,26 +199,33 @@ class DBPF(Sims2Reader):
                 print("RCOL is not compressed ")
             self.extract_namemaps(fh)
             identifier = DecodeDescriptor(descriptor)
-            if verbose:
-                print ("Extracting RCOL")
-            rcol = RCOL(fh, identifier, offset, size, decompressed_size, self, verbose)
+            if identifier.type.is_rcol():
+                if verbose:
+                    print ("Extracting RCOL from %s" % str(identifier))
+                resource = RCOL(fh, identifier, offset, size, decompressed_size, self, verbose)
+            else:
+                if verbose:
+                    print("Extracting raw packed file from %s" % str(identifier))
+                resource = identifier.type.RawPackedConstructor()(fh, identifier, offset, size, decompressed_size, self, verbose)
             if verbose:
                 print ("Done!")
         #except ValueError as err:
         #    print("ValueError while processing %s: %s" % (self.file, err))
         #    print("Descriptor: %s" % str(descriptor))
         #    rcol = None
-        return rcol
+        return resource
     
     def findname(self, rcol_type, rcol_name, verbose=False):
         if not self.namemaps:
             if type(self.namemaps) == None:
                 raise RuntimeError("Namemaps not initialised")
             else:
-                print("No namemap in file %s" % self.file)
-                self.build_namemaps(True)
+                if verbose:
+                    print("No namemap in file %s" % self.file)
+                self.build_namemaps(verbose)
         if rcol_type not in self.namemaps:
-            print("No local namemap for type %s" % str(rcol_type))
+            if verbose:
+                print("No local namemap for type %s" % str(rcol_type))
             return None
         rcol_map = self.namemaps[rcol_type]
         lc_name = rcol_name.lower()
@@ -304,34 +310,56 @@ class PackageManager:
             if rtype == dtype:
                 yield descriptor
     
-    def GetRCOL(self, descriptor, verbose=False):
+    def GetRCOLsByGroup(self, rgroup):
+        for descriptor in self.package_index:
+            dgroup = GetGroupFromDescriptor(descriptor)
+            if rgroup == dgroup:
+                yield descriptor
+    
+    def GetRCOLsByInstance(self, rinst):
+        for descriptor in self.package_index:
+            dinst = GetInstanceFromDescriptor(descriptor)
+            if rinst == dinst:
+                yield descriptor
+    
+    def GetRCOLsByResource(self, rres):
+        for descriptor in self.package_index:
+            dres = GetResourceFromDescriptor(descriptor)
+            if rres == dres:
+                yield descriptor
+    
+    def getResource(self, descriptor, verbose=False):
         if descriptor not in self.package_index:
             descriptor = descriptor[0:12] + bytes.fromhex('00000000')
         if descriptor in self.package_index:
             package = self.package_index[descriptor]
-            return package.get_RCOL(descriptor, verbose)
+            if verbose:
+                print ("Getting resource for %s" % str(DecodeDescriptor(descriptor)))
+            return package.getResource(descriptor, verbose)
         else:
             #raise RuntimeError("Can't find descriptor in package list")
             return None
     
     def GetRCOLByName(self, rcol_type, rcol_name, verbose=False):
         descriptor = self.findname(rcol_type, rcol_name)
-        rcol = self.GetRCOL(descriptor)
+        rcol = self.getResource(descriptor)
         if not rcol:
             if verbose:
                 print("Couldn't locate descriptor: %s" % str(DecodeDescriptor(descriptor)))
             resource = sims2crc32(rcol_name.lower().encode('ascii'))
             resource_bytes = struct.pack('I', resource)
             descriptor = b''.join((descriptor, resource_bytes))
-            rcol = self.GetRCOL(descriptor)
+            rcol = self.getResource(descriptor)
             if not rcol:
                 print("Couldn't locate descriptor: %s" % str(DecodeDescriptor(descriptor)))
                 raise RuntimeError("Can't find descriptor in package list")
         return rcol
 
-    def findname(self, rcol_type, rcol_name, verbose=False):
+    def findname(self, rcol_type, resource_name, verbose=False):
+        name_lc = resource_name.lower()
         if not self.meta_namemap:
-            print("Using findname but meta namemap hasn't been generated, generating now")
+            if verbose:
+                print("Using findname but meta namemap hasn't been generated, generating now")
             for package in self.packages:
                 if not package.namemaps:
                     with open(package.file, 'rb') as fh:
@@ -340,7 +368,7 @@ class PackageManager:
         if rcol_type not in self.meta_namemap:
             raise RuntimeError("Can't find RCOL type \"%s\" in meta namemap" % str(rcol_type))            
         namemap = self.meta_namemap[rcol_type]
-        if rcol_name.lower() not in namemap:
+        if name_lc not in namemap:
             if False:
                 from pprint import pprint
                 pprint(namemap)
@@ -350,7 +378,46 @@ class PackageManager:
                         print ("No namemaps for file %s" % pack.file)
                     elif rcol_type not in pack.namemaps:
                         print ("No %s namemap for file %s" % (str(rcol_type), pack.file))                        
-                    elif rcol_name in pack.namemaps[rcol_type]:
+                    elif name_lc in pack.namemaps[rcol_type]:
                         print("Found in namemap for file %s" % pack.file)
-            raise RuntimeError("Can't find \"%s\" in \"%s\" namemap" % (rcol_name, str(rcol_type)))
-        return namemap[rcol_name.lower()]
+            raise RuntimeError("Can't find \"%s\" in \"%s\" namemap" % (resource_name, str(rcol_type)))
+        ident = DecodeDescriptor(namemap[name_lc])
+        if ident.resource == 0:
+            ident.resource = sims2crc32(name_lc.encode('ascii'))
+        return ident.get_descriptor()
+    
+    def getAllObjects(self, verbose=True):
+        resources = self.GetRCOLsByType(PackedFile.OBJD)
+        for item_desc in resources:
+            ident = DecodeDescriptor(item_desc)
+            objd = self.getResource(item_desc)
+            yield (ident.group, objd.name)
+        
+    def getGroupResources(self, group, verbose=True):        
+        resources = self.GetRCOLsByGroup(group)
+        objd = None
+        model_names = None
+        cres = None
+        for item_desc in resources:
+            # Must already be in index as that's where we got it from
+            package = self.package_index[item_desc]
+            ident = DecodeDescriptor(item_desc)
+            if ident.type == PackedFile.OBJD:
+                if verbose:
+                    print("%s %s found in %s" % (str(ident.type), str(ident), package.file))
+                objd = self.getResource(item_desc)
+            if ident.type == PackedFile.STR and ident.instance == 0x00000085:
+                if verbose:
+                    print("%s %s found in %s" % (str(ident.type), str(ident), package.file))
+                model_names = self.getResource(item_desc)
+
+        if model_names:
+            model_name, _ = model_names.strings[1][1]
+            cres_name = model_name + "_cres"
+            descriptor = self.findname(PackedFile.CRES, cres_name.lower())
+            cres = self.getResource(descriptor)
+
+        if verbose:
+            print("Name: \"%s\"" % objd.name)
+            print("Model Name: \"%s\"" % model_name)
+            print("CRES: %s" % cres.rcoldata[0].sgres.filename)

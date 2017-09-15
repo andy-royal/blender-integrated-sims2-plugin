@@ -80,4 +80,4 @@ class GMNDData(RCOLDataBlock):
                 print()
                 rcol.dump(indent)
 
-GMNDData.register()
+GMNDData.register_RCOL()

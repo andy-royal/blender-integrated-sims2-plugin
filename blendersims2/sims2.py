@@ -7,6 +7,8 @@ import os
 
 from blendersims2.fileio.package import PackageManager
 from blendersims2.fileio.tgir import Identifier, PackedFile, DecodeDescriptor
+from blendersims2.fileio.crcutils import sims2crc32, sims2crc24
+from blendersims2.fileio.rawpacked.objd import OBJD
 
 def AddSims2DirectoriesToPackageManager(packman):
     # Get Sims 2 install directory and add appropriate subdirectories
@@ -48,7 +50,7 @@ def AddSims2DirectoriesToPackageManager(packman):
     for leafdir in subdirs:
         packman.AddDirectory(sims2user + "\\" + leafdir + "\\")
 
-def CheckAllCRES(verbose=True, starting_point=0):
+def CheckAllCRES(verbose=False, starting_point=0):
     
     packman = PackageManager()
     AddSims2DirectoriesToPackageManager(packman)
@@ -62,7 +64,7 @@ def CheckAllCRES(verbose=True, starting_point=0):
             continue
         if verbose:
             print("Extracting CRES at index %d: %s" % (index, str(DecodeDescriptor(cres_descriptor))))
-        cres = packman.GetRCOL(cres_descriptor)
+        cres = packman.getResource(cres_descriptor)
         cres.ResolveAllLinks(packman)
         if cres.unsupported:
             unsupported.extend(cres.unsupported)
@@ -73,23 +75,45 @@ def CheckAllCRES(verbose=True, starting_point=0):
             print("    %s" % str(rcol_type))
     return index
 
+def getGroupResources(group, verbose=False):    
+    packman = PackageManager()
+    AddSims2DirectoriesToPackageManager(packman)
+    packman.ReadDBPFIndices()
+    packman.getGroupResources(group, verbose=verbose)
+
+def dumpAllObjects(verbose=False):
+    packman = PackageManager()
+    AddSims2DirectoriesToPackageManager(packman)
+    packman.ReadDBPFIndices()
+    for group, name in packman.getAllObjects(verbose=verbose):
+        print("0x%08x => %s" % (group, name))
+        for res_desc in packman.GetRCOLsByGroup(group):
+            ident = DecodeDescriptor(res_desc)
+            print("%s(%x)" % (ident.type, ident.instance), end=', ')
+        print("")
+
+def findStupidCases(verbose=False):
+    packman = PackageManager()
+    AddSims2DirectoriesToPackageManager(packman)
+    packman.ReadDBPFIndices()
+    resources = packman.GetRCOLsByType(PackedFile.OBJD)
+    stupid_cases = 0
+    for item_desc in resources:
+        ident = DecodeDescriptor(item_desc)
+        objd = packman.getResource(item_desc)
+        if objd.stupid_namelen:
+            stupid_cases += 1
+            print ("Stupid case - %s in file %s" % (str(ident), objd.dbpf.file))
+    print("Total stupid cases: %d" % stupid_cases)
+
 def spag():
     packman = PackageManager()
     AddSims2DirectoriesToPackageManager(packman)
     packman.ReadDBPFIndices(extract_namemaps=False, verbose=True, alert_identifier=0xffe69795)
-    #packman.ReadDBPFIndices(extract_namemaps=True)
-    #rcol = packman.GetRCOLByName(PackedFile.LGHTP, "cursorOnly_rig_key_plumbbob_lght")
-#    identifier = Identifier.from_tgir(0xe519c933, 0x1c0532fa, 0xff7b1cc5, 0x00000000)
-#    identifier = Identifier.from_tgir(0xe519c933, 0xffffffff, 0xffe69795, 0x00000000)
-#    identifier = Identifier.from_tgir(0xe519c933, 0x7f32fc43, 0xff7046d5, 0x00000000)
-#    identifier = Identifier.from_tgir(0xfc6eb1f7, 0xffffffff, 0xff1e4188, 0x00000000)
-#    identifier = Identifier.from_tgir(0xe519c933, 0xffffffff, 0xffa25aec, 0x00000000)
-#    identifier = Identifier.from_tgir(0xe519c933, 0x1c0532fa, 0xff09f942, 0xf8ee6a74)
-    identifier = Identifier.from_tgir(0xe519c933, 0x1c0532fa, 0xff773c2c, 0x72d82f55)
-    rcol = packman.GetRCOL(identifier.get_descriptor(), verbose=True)
-    #rcol.dbpf.dump_index()
-    rcol.ResolveAllLinks(packman, verbose=True)
-    rcol.dump()
+    identifier = Identifier.from_tgir(0x4f424a44, 0x7f1cbcf8, 0x000041a8, 0x00000000)
+    res = packman.getResource(identifier.get_descriptor(), verbose=True)
+    #res.ResolveAllLinks(packman, verbose=True)
+    res.dump()
 #    for key, val in PackedFileType.RCOLDict.items():
 #        print("%s => %s" % (key, val))
     
@@ -98,6 +122,9 @@ if __name__ == "__main__":
         import cProfile
         cProfile.run('CheckAllCRES()', sort='time')
     else:
-        print ("Checked %d CRES files" % CheckAllCRES(starting_point=0))
+        #print ("Checked %d CRES files" % CheckAllCRES(starting_point=0))
+        #getGroupResources(0x7fac04c8)
+        #dumpAllObjects()
+        findStupidCases()
         #spag()
     print("Done!")

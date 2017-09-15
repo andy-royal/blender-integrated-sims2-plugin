@@ -111,11 +111,11 @@ class LGHTData(RCOLDataBlock):
         indented_print(indent+2, "blue  = %f" % self.blue)
 
     @classmethod
-    def register(cls):
-        PackedFileType.register(PackedFile.LGHTA, cls)
-        PackedFileType.register(PackedFile.LGHTD, cls)
-        PackedFileType.register(PackedFile.LGHTP, cls)
-        PackedFileType.register(PackedFile.LGHTS, cls)
+    def register_RCOL(cls):
+        PackedFileType.register_RCOL(PackedFile.LGHTA, cls)
+        PackedFileType.register_RCOL(PackedFile.LGHTD, cls)
+        PackedFileType.register_RCOL(PackedFile.LGHTP, cls)
+        PackedFileType.register_RCOL(PackedFile.LGHTS, cls)
 
 class cLightRefNode(RCOLDataBlock):
 
@@ -165,5 +165,5 @@ class cLightRefNode(RCOLDataBlock):
             indented_print(indent+1, "No use types")
         indented_print(indent+1, "Light File Link Index: %d" % self.light_file_link_index)
 
-cLightRefNode.register()
-LGHTData.register()
+cLightRefNode.register_RCOL()
+LGHTData.register_RCOL()

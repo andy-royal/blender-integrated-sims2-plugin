@@ -4,19 +4,20 @@
 import struct
 
 class DataGenerator:
-    
+
     def __init__(self, fh, offset=None, size=None, decompressed_size=None, verbose=False):
         self.fh = fh
+        self.offset = offset
+        self.size = size
+        self.decompressed_size = decompressed_size
+        self.decompressed = False
         if offset:
             if verbose:
                 print("Going to offset %d" % offset)
             self.goto(offset)
-        self.size = size
-        self.decompressed = False    # Initially read raw data whatever
-        self.decompressed_size = decompressed_size
         if self.decompressed_size:
             self.decompress()
-    
+
     def decompress(self, verbose=False):
         # Read header and sanity check
         compsize = self.get_dword()
@@ -96,9 +97,6 @@ class DataGenerator:
         self.decompressed = True
         self.decomp_ptr = 0
 
-    def goto(self, offset):
-        self.fh.seek(offset)
-        
     def read(self, n):
         if self.decompressed:
             res = self.decomp_buffer[self.decomp_ptr:(self.decomp_ptr + n)]
@@ -118,7 +116,7 @@ class DataGenerator:
     
     def get_string(self, num):
         return struct.unpack('%ds' % num, self.read(num))[0].decode('ascii')
-                      
+
     def get_word(self):
         return struct.unpack('H', self.read(2))[0]
 
@@ -140,10 +138,23 @@ class DataGenerator:
         
     def get_floats(self, num):
         return struct.unpack('%df' % num, self.read(4*num))
-    
+
+    def goto(self, offset):
+        if self.decompressed:
+            self.decomp_ptr = offset
+        else:
+            self.fh.seek(offset)
+
     def tell(self):
         if self.decompressed:
             res = self.decomp_ptr
         else:
             res = self.fh.tell()
+        return res
+
+    def remaining(self):
+        if self.decompressed:
+            res = self.decompressed_size - self.decomp_ptr
+        else:
+            res = self.fh.tell() - self.offset
         return res

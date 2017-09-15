@@ -66,7 +66,7 @@ class cObjectGraphNode(Node):
         if verbose:
             print ("Extension count: %d" % count)
         for _ in range (0, count):
-            self.extensions.append(Chain(dg, True))
+            self.extensions.append(Chain(dg, verbose))
             
         # Optional resource name
         if self.version == 4:
@@ -104,7 +104,7 @@ class cTransformNode(Node):
         
         # Some nodes
         self.comptreenode = cCompositionTreeNode(dg, verbose)
-        self.objgraphnode = cObjectGraphNode(dg, True) #verbose)
+        self.objgraphnode = cObjectGraphNode(dg, verbose)
     
         # Some chains
         self.chains = []
@@ -120,8 +120,8 @@ class cTransformNode(Node):
         self.subset = dg.get_dword()
         
     @classmethod
-    def register(cls):
-        PackedFileType.register(cls.typeEnum, cls)
+    def register_RCOL(cls):
+        PackedFileType.register_RCOL(cls.typeEnum, cls)
     
     def dump(self, indent):
         super(cTransformNode, self).dump(indent)
@@ -154,7 +154,7 @@ class cBoneDataExtension(Node):
         super(cBoneDataExtension, self).extract(dg)
         
         # Nodes
-        self.ext = cExtension(dg, verbose=True)
+        self.ext = cExtension(dg, verbose=False)
 
         # Unknowns
         _ = dg.get_dwords(4)
@@ -163,8 +163,8 @@ class cBoneDataExtension(Node):
             self.rotation = Quaternion(dg)
             
     @classmethod
-    def register(cls):
-        PackedFileType.register(cls.typeEnum, cls)
+    def register_RCOL(cls):
+        PackedFileType.register_RCOL(cls.typeEnum, cls)
     
     def dump(self, indent=0):
         super(cBoneDataExtension, self).dump(indent)

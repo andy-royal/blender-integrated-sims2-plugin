@@ -96,7 +96,11 @@ def GetGroupFromDescriptor(descriptor, verbose=False):
 def GetInstanceFromDescriptor(descriptor, verbose=False):
     return struct.unpack('I', descriptor[8:12])[0]
 
+def GetResourceFromDescriptor(descriptor, verbose=False):
+    return struct.unpack('I', descriptor[12:16])[0]
+
 class PackedFile(IntEnum):
+    invalid  = 0x00000000
     cViewRec = 0x0c152b8e
     XMOL     = 0x0c1fe246
     BINX     = 0x0c560f39
@@ -172,32 +176,10 @@ class PackedFile(IntEnum):
 class PackedFileType:
 
     RCOLDict = {}
-#     RCOLDict = {
-#         PackedFile.cViewRec : cViewerRefNodeRecursive,
-#         PackedFile.cBound   : cBoundingVolumeBuilder,
-#         PackedFile.cLight   : cLightRefNode,
-#         PackedFile.cTSFace  : cTSFaceGeometryBuilder,
-#         PackedFile.cDLE     : cDLEData,
-#         PackedFile.cProc    : cProcessDeformationsBuilder,
-#         PackedFile.cTang    : cTangentSpaceBuilder,
-#         PackedFile.cShape   : cShapeRefNode,
-#         PackedFile.cTran    : cTransformNode,
-#         PackedFile.GMND     : GMNDData,
-#         PackedFile.cTag     : cTagExtension,
-#         PackedFile.cIMB     : cIndexedMeshBuilder,
-#         PackedFile.GMDC     : GMDCData,
-#         PackedFile.LGHTA    : LGHTData,
-#         PackedFile.LGHTD    : LGHTData,
-#         PackedFile.LGHTP    : LGHTData,
-#         PackedFile.LGHTS    : LGHTData,
-#         PackedFile.cViewer  : cViewerRefNode,
-#         PackedFile.cComp    : cCompactorBuilder,
-#         PackedFile.CRES     : CRESData,
-#         PackedFile.cBone    : cBoneDataExtension,
-#         PackedFile.SHPE     : SHPEData
-#     }
+    RawPackedDict = {}
     
     RCOLStrings = {
+        PackedFile.invalid  : 'NULL',
         PackedFile.cViewRec : 'cViewerRefNodeRecursive',
         PackedFile.XMOL     : 'Mesh overlay XML',
         PackedFile.BINX     : 'Binary Index',
@@ -281,12 +263,28 @@ class PackedFileType:
     def is_rcol(self):
         return (self.value in self.RCOLDict)
     
-    def RCOLConstructor(self):
-        return self.RCOLDict[self.value]
+    def is_raw_packed(self):
+        return (self.value in self.RawPackedDict)
     
+    def RCOLConstructor(self):
+        if self.value in self.RCOLDict:
+            return self.RCOLDict[self.value]
+        else:
+            raise("%s is not supported as an RCOL" % str(self.value))
+
+    def RawPackedConstructor(self):
+        if self.value in self.RawPackedDict:
+            return self.RawPackedDict[self.value]
+        else:
+            raise("%s is not supported as a RawPacked file" % str(self.value))
+
     @classmethod
-    def register(cls, enum, func):
+    def register_RCOL(cls, enum, func):
         cls.RCOLDict[enum] = func
+
+    @classmethod
+    def register_raw(cls, enum, func):
+        cls.RawPackedDict[enum] = func
 
     def __str__(self):
         return self.RCOLStrings[self.value]
@@ -346,19 +344,19 @@ class FileLink(Sims2Reader):
             print("Resolving filelink, %s" % str(identifier))
 
         # Try same package first
-        self.target = dbpf.get_RCOL(descriptor, verbose)
+        self.target = dbpf.getResource(descriptor, verbose)
         if not self.target:
             local_id = copy.copy(identifier)
             if identifier.group != 0xffffffff:
                 local_id.group = 0xffffffff
-                self.target = dbpf.get_RCOL(local_id.get_descriptor(), verbose)
+                self.target = dbpf.getResource(local_id.get_descriptor(), verbose)
         if not self.target and identifier.group != parent_group:
             local_id.group = parent_group
-            self.target = dbpf.get_RCOL(local_id.get_descriptor(), verbose)
+            self.target = dbpf.getResource(local_id.get_descriptor(), verbose)
             
         # Otherwise try all known packages
         if not self.target:
-            self.target = packman.GetRCOL(descriptor, verbose)
+            self.target = packman.getResource(descriptor, verbose)
             
         # Out of ideas
         if not self.target:

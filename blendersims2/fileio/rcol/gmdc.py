@@ -362,4 +362,4 @@ class GMDCData(RCOLDataBlock):
         else:
             indented_print(indent+1, "No subsets")
 
-GMDCData.register()
+GMDCData.register_RCOL()
